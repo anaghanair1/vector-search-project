@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 
 class EmbeddingService:
-    def __init__(self, model_name: str = 'BAAI/bge-small-en-v1.5'):
+    def __init__(self, model_name: str = 'all-MiniLM-L6-v2'):  # This gives 384 dimensions
         """
         Initialize embedding service with specified model
         """

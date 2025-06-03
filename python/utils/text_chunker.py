@@ -6,7 +6,7 @@ import re
 from typing import List, Dict, Any
 
 class TextChunker:
-    def __init__(self, chunk_size: int = 300, overlap: int = 50):
+    def __init__(self, chunk_size: int = 500, overlap: int = 100):  # Larger chunks
         """
         Initialize text chunker
         
@@ -37,28 +37,37 @@ class TextChunker:
         if len(cleaned_text) <= self.chunk_size:
             return [cleaned_text]
         
-        chunks = []
-        start = 0
+        # Split into sentences first
+        sentences = self._split_into_sentences(cleaned_text)
         
-        while start < len(cleaned_text):
-            end = min(start + self.chunk_size, len(cleaned_text))
-            
-            # Try to find a good breaking point (sentence boundary)
-            if end < len(cleaned_text):
-                end = self._find_sentence_boundary(cleaned_text, start, end)
-            
-            # Extract chunk
-            chunk = cleaned_text[start:end].strip()
-            
-            if chunk and len(chunk) > 10:  # Only add meaningful chunks
-                chunks.append(chunk)
-            
-            # Move start position with overlap
-            start = max(end - self.overlap, start + 1)
-            
-            # Prevent infinite loops
-            if start >= len(cleaned_text):
-                break
+        chunks = []
+        current_chunk = ""
+        
+        for sentence in sentences:
+            # If adding this sentence would exceed chunk size
+            if len(current_chunk) + len(sentence) > self.chunk_size and current_chunk:
+                # Save current chunk if it's meaningful
+                if len(current_chunk.strip()) > 50:  # Minimum chunk size
+                    chunks.append(current_chunk.strip())
+                
+                # Start new chunk with overlap
+                if chunks and self.overlap > 0:
+                    # Take last few words for overlap
+                    words = current_chunk.split()
+                    overlap_words = words[-10:] if len(words) > 10 else words
+                    current_chunk = " ".join(overlap_words) + " " + sentence
+                else:
+                    current_chunk = sentence
+            else:
+                # Add sentence to current chunk
+                if current_chunk:
+                    current_chunk += " " + sentence
+                else:
+                    current_chunk = sentence
+        
+        # Add final chunk
+        if current_chunk.strip() and len(current_chunk.strip()) > 50:
+            chunks.append(current_chunk.strip())
         
         return chunks
     
@@ -76,40 +85,19 @@ class TextChunker:
         
         return cleaned.strip()
     
-    def _find_sentence_boundary(self, text: str, start: int, preferred_end: int) -> int:
-        """
-        Find the best sentence boundary within a reasonable range
+    def _split_into_sentences(self, text: str) -> List[str]:
+        """Split text into sentences"""
+        # Simple sentence splitting
+        sentences = re.split(r'[.!?]+\s+', text)
         
-        Args:
-            text: Full text
-            start: Start position
-            preferred_end: Preferred end position
-            
-        Returns:
-            Best end position
-        """
-        # Look for sentence endings within the last 100 characters
-        search_start = max(preferred_end - 100, start)
-        search_text = text[search_start:preferred_end]
+        # Clean up sentences
+        cleaned_sentences = []
+        for sentence in sentences:
+            sentence = sentence.strip()
+            if len(sentence) > 10:  # Only keep meaningful sentences
+                cleaned_sentences.append(sentence)
         
-        # Find sentence endings (., !, ?)
-        sentence_endings = []
-        for match in re.finditer(r'[.!?]\s+', search_text):
-            sentence_endings.append(search_start + match.end())
-        
-        if sentence_endings:
-            # Return the last sentence ending
-            return sentence_endings[-1]
-        
-        # If no sentence ending found, look for other boundaries
-        # Comma, semicolon, or colon
-        for pattern in [r'[,;:]\s+', r'\s+and\s+', r'\s+but\s+', r'\s+or\s+']:
-            matches = list(re.finditer(pattern, search_text))
-            if matches:
-                return search_start + matches[-1].end()
-        
-        # If no good boundary found, use preferred end
-        return preferred_end
+        return cleaned_sentences
     
     def chunk_review(self, review: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -151,7 +139,7 @@ class TextChunker:
         all_chunks = []
         
         if show_progress:
-            print(f"📝 Chunking {len(reviews)} reviews...")
+            print(f"Chunking {len(reviews)} reviews...")
         
         for i, review in enumerate(reviews):
             if show_progress and i % 50 == 0:
@@ -162,8 +150,8 @@ class TextChunker:
         
         if show_progress:
             avg_chunks = len(all_chunks) / len(reviews) if reviews else 0
-            print(f"✅ Created {len(all_chunks)} chunks from {len(reviews)} reviews")
-            print(f"📊 Average {avg_chunks:.1f} chunks per review")
+            print(f"Created {len(all_chunks)} chunks from {len(reviews)} reviews")
+            print(f"Average {avg_chunks:.1f} chunks per review")
         
         return all_chunks
     
@@ -181,40 +169,3 @@ class TextChunker:
             'max_chunk_length': max(chunk_lengths),
             'total_characters': sum(chunk_lengths)
         }
-
-# Example usage and testing
-if __name__ == "__main__":
-    # Test the chunker
-    chunker = TextChunker(chunk_size=200, overlap=30)
-    
-    # Test with sample review
-    sample_review = {
-        'review_id': 'test_001',
-        'text': """This restaurant was absolutely amazing! The food was delicious, 
-                   the service was excellent, and the atmosphere was perfect. I especially 
-                   loved the pasta dish - it was cooked to perfection with a rich, flavorful 
-                   sauce. The staff was very attentive and friendly throughout our entire meal. 
-                   The prices were reasonable for the quality of food and service we received. 
-                   We will definitely be coming back here again and would highly recommend 
-                   this place to anyone looking for a great dining experience.""",
-        'stars': 5
-    }
-    
-    # Chunk the review
-    chunks = chunker.chunk_review(sample_review)
-    
-    print(f"Original text length: {len(sample_review['text'])}")
-    print(f"Number of chunks: {len(chunks)}")
-    print()
-    
-    for i, chunk in enumerate(chunks):
-        print(f"Chunk {i + 1}:")
-        print(f"  Length: {len(chunk['chunk_text'])}")
-        print(f"  Text: {chunk['chunk_text']}")
-        print()
-    
-    # Get statistics
-    stats = chunker.get_stats(chunks)
-    print("Chunking Statistics:")
-    for key, value in stats.items():
-        print(f"  {key}: {value}")
