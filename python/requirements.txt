@@ -1,0 +1,19 @@
+# Core dependencies
+supabase==2.3.4
+python-dotenv==1.0.0
+
+# ML and embeddings
+sentence-transformers==2.2.2
+transformers==4.36.0
+torch==2.1.0
+
+# Data processing
+numpy==1.24.3
+pandas==2.0.3
+datasets==2.14.0
+
+# HTTP requests (backup)
+requests==2.31.0
+
+# Progress bars
+tqdm==4.66.1
