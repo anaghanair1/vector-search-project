@@ -1,6 +1,14 @@
 """
 Vector store for handling database operations
 Handles the review chunks and their embeddings
+
+Repository Pattern: https://martinfowler.com/eaaCatalog/repository.html
+Data Access Object Pattern: https://en.wikipedia.org/wiki/Data_access_object
+Supabase Python CRUD: https://supabase.com/docs/reference/python/ins
+Batch Insert Optimization: https://supabase.com/docs/reference/python/upsert
+Error Handling: https://supabase.com/docs/reference/python/handling-errors
+Connection Management: https://github.com/supabase/supabase-py/blob/main/examples/
+
 """
 from typing import List, Dict, Any
 from config.database import db_config

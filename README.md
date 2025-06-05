@@ -1,4 +1,4 @@
-# Restaurant Review Vector Search
+# Yelp Reviews Vector Search
 
 This is a search system for finding restaurant reviews using embeddings. It lets you search by meaning instead of just keywords.
 
@@ -56,7 +56,7 @@ The code is organized into different services:
 
 ### Database setup
 
-In your Supabase SQL editor, run the queries in database/schema.sql, and run the function in database/functions.sql, to create the tables and functions.
+In your Supabase SQL editor, run the queries in `database/schema.sql`, and run the function in `database/functions.sql`, to create the tables and functions.
 
 ### Testing everything
 
