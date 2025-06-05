@@ -1,30 +1,17 @@
 """
-Vector store service for Supabase operations
-Handles all database interactions for review chunks and embeddings
+Vector store for handling database operations
+Handles the review chunks and their embeddings
 """
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from config.database import db_config
 
 class VectorStore:
     def __init__(self):
         self.client = db_config.get_client()
-        self.table_name = 'review_chunks'
+        self.table = 'review_chunks'  # main table for storing chunks
     
-    def insert_chunk(self, review_id: str, chunk_text: str, chunk_index: int, 
-                    embedding: List[float], stars: int) -> bool:
-        """
-        Insert a single review chunk with embedding
-        
-        Args:
-            review_id: Unique identifier for the review
-            chunk_text: The text content of the chunk
-            chunk_index: Position of chunk within the original review
-            embedding: Vector embedding of the chunk
-            stars: Star rating of the original review
-            
-        Returns:
-            bool: True if successful
-        """
+    def insert_chunk(self, review_id, chunk_text, chunk_index, embedding, stars):
+        """Insert a single chunk into database"""
         try:
             data = {
                 'review_id': review_id,
@@ -34,81 +21,69 @@ class VectorStore:
                 'stars': stars
             }
             
-            result = self.client.table(self.table_name).insert(data).execute()
+            result = self.client.table(self.table).insert(data).execute()
             return True
             
         except Exception as e:
-            print(f"Error inserting chunk: {e}")
+            print(f"Insert failed: {e}")
             return False
     
-    def insert_batch_chunks(self, chunks: List[Dict[str, Any]]) -> int:
-        """
-        Insert multiple chunks at once (much faster)
-        
-        Args:
-            chunks: List of chunk dictionaries with keys:
-                   review_id, chunk_text, chunk_index, embedding, stars
-                   
-        Returns:
-            int: Number of chunks successfully inserted
-        """
-        if not chunks:
+    def insert_batch_chunks(self, chunks_data):
+        """Insert multiple chunks at once - way faster than individual inserts"""
+        if not chunks_data:
             return 0
         
         try:
-            # Supabase can handle batch inserts efficiently
-            result = self.client.table(self.table_name).insert(chunks).execute()
+            result = self.client.table(self.table).insert(chunks_data).execute()
             
-            inserted_count = len(result.data) if result.data else len(chunks)
-            print(f"✅ Successfully inserted {inserted_count} chunks")
-            return inserted_count
+            # count successful inserts
+            if result.data:
+                count = len(result.data)
+            else:
+                count = len(chunks_data)  # assume all succeeded if no error
             
+            print(f"Inserted {count} chunks")
+            return count        
         except Exception as e:
-            print(f"❌ Error inserting batch chunks: {e}")
+            print(f"Batch insert error: {e}")
             return 0
     
-    def search_similar(self, query_embedding: List[float], 
-                      match_threshold: float = 0.7, 
-                      match_count: int = 10) -> List[Dict[str, Any]]:
-        """
-        Search for similar chunks using vector similarity
-        
-        Args:
-            query_embedding: Vector to search for
-            match_threshold: Minimum similarity score (0-1)
-            match_count: Maximum number of results
-            
-        Returns:
-            List of matching chunks with similarity scores
-        """
+    def search_similar(self, query_embedding, match_threshold=0.7, match_count=10):
+        """Search for similar chunks using vector similarity"""
         try:
-            # Use the PostgreSQL function we created earlier
+            # use the database function we created
             result = self.client.rpc('search_similar_reviews', {
                 'query_embedding': query_embedding,
                 'match_threshold': match_threshold,
                 'match_count': match_count
             }).execute()
             
-            return result.data if result.data else []
+            if result.data:
+                return result.data
+            else:
+                return []
             
         except Exception as e:
-            print(f"❌ Error searching similar chunks: {e}")
+            print(f"Search error: {e}")
             return []
     
-    def get_chunk_count(self) -> int:
-        """Get total number of chunks in database"""
+    def get_chunk_count(self):
+        """Get total number of chunks"""
         try:
-            result = self.client.table(self.table_name).select('id', count='exact').execute()
-            return result.count if result.count is not None else 0
+            result = self.client.table(self.table).select('id', count='exact').execute()
+            if result.count is not None:
+                return result.count
+            else:
+                return 0
             
         except Exception as e:
-            print(f"❌ Error getting chunk count: {e}")
+            print(f"Error counting chunks: {e}")
             return 0
     
-    def get_chunks_by_review_id(self, review_id: str) -> List[Dict[str, Any]]:
-        """Get all chunks for a specific review"""
+    def get_chunks_by_review(self, review_id):
+        """Get all chunks for specific review"""
         try:
-            result = self.client.table(self.table_name)\
+            result = self.client.table(self.table)\
                 .select('*')\
                 .eq('review_id', review_id)\
                 .order('chunk_index')\
@@ -117,13 +92,13 @@ class VectorStore:
             return result.data if result.data else []
             
         except Exception as e:
-            print(f"❌ Error getting chunks for review {review_id}: {e}")
+            print(f"Error getting review chunks: {e}")
             return []
     
-    def get_sample_chunks(self, limit: int = 5) -> List[Dict[str, Any]]:
-        """Get sample chunks for testing"""
+    def get_sample_chunks(self, limit=5):
+        """Get some sample chunks for testing"""
         try:
-            result = self.client.table(self.table_name)\
+            result = self.client.table(self.table)\
                 .select('*')\
                 .limit(limit)\
                 .execute()
@@ -131,74 +106,83 @@ class VectorStore:
             return result.data if result.data else []
             
         except Exception as e:
-            print(f"❌ Error getting sample chunks: {e}")
+            print(f"Error getting samples: {e}")
             return []
     
-    def delete_all_chunks(self) -> bool:
-        """Delete all chunks (use with caution!)"""
+    def delete_all_chunks(self):
+        """Delete everything - be careful with this!"""
         try:
-            result = self.client.table(self.table_name)\
+            # delete all records
+            result = self.client.table(self.table)\
                 .delete()\
                 .neq('id', 0)\
-                .execute()  # Delete all records
+                .execute()
             
-            print("🗑️ All chunks deleted successfully")
+            print("All chunks deleted")
             return True
             
         except Exception as e:
-            print(f"❌ Error deleting chunks: {e}")
+            print(f"Delete failed: {e}")
             return False
     
-    def get_database_stats(self) -> Dict[str, Any]:
-        """Get comprehensive database statistics"""
+    def get_database_stats(self):
+        """Get various stats about the database"""
         try:
-            # Get total count
-            total_count = self.get_chunk_count()
+            total_chunks = self.get_chunk_count()
             
-            # Get unique review count
-            result = self.client.table(self.table_name)\
+            # get unique reviews
+            result = self.client.table(self.table)\
                 .select('review_id')\
                 .execute()
             
-            unique_reviews = len(set(row['review_id'] for row in result.data)) if result.data else 0
+            if result.data:
+                unique_reviews = len(set(row['review_id'] for row in result.data))
+            else:
+                unique_reviews = 0
             
-            # Get star distribution
-            star_result = self.client.table(self.table_name)\
+            # star rating distribution
+            star_result = self.client.table(self.table)\
                 .select('stars')\
                 .execute()
             
-            stars_data = [row['stars'] for row in star_result.data] if star_result.data else []
-            star_distribution = {}
-            for star in stars_data:
-                star_distribution[star] = star_distribution.get(star, 0) + 1
+            star_counts = {}
+            if star_result.data:
+                for row in star_result.data:
+                    stars = row['stars']
+                    star_counts[stars] = star_counts.get(stars, 0) + 1
             
-            return {
-                'total_chunks': total_count,
+            stats = {
+                'total_chunks': total_chunks,
                 'unique_reviews': unique_reviews,
-                'avg_chunks_per_review': round(total_count / unique_reviews, 2) if unique_reviews > 0 else 0,
-                'star_distribution': star_distribution
+                'star_distribution': star_counts
             }
             
+            # calculate average chunks per review
+            if unique_reviews > 0:
+                stats['avg_chunks_per_review'] = round(total_chunks / unique_reviews, 2)
+            else:
+                stats['avg_chunks_per_review'] = 0
+            
+            return stats
+            
         except Exception as e:
-            print(f"❌ Error getting database stats: {e}")
+            print(f"Stats error: {e}")
             return {}
 
-# Example usage and testing
+# test the store if run directly
 if __name__ == "__main__":
-    # Test the vector store
     store = VectorStore()
     
-    # Get current stats
-    print("📊 Database Statistics:")
+    print("Current database stats:")
     stats = store.get_database_stats()
     for key, value in stats.items():
         print(f"  {key}: {value}")
     
-    # Get sample chunks
-    print("\n🔍 Sample chunks:")
+    print("\nSample chunks:")
     samples = store.get_sample_chunks(3)
     for i, chunk in enumerate(samples, 1):
-        print(f"  {i}. Review: {chunk['review_id'][:20]}...")
-        print(f"     Text: {chunk['chunk_text'][:100]}...")
-        print(f"     Stars: {chunk['stars']}")
+        print(f"  {i}. Review: {chunk.get('review_id', 'unknown')}")
+        text = chunk.get('chunk_text', '')
+        print(f"     Text: {text[:100]}{'...' if len(text) > 100 else ''}")
+        print(f"     Stars: {chunk.get('stars', 'unknown')}")
         print()

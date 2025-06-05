@@ -1,41 +1,32 @@
 """
-Dataset processing script for Yelp reviews
-Downloads, chunks, embeds, and stores reviews in Supabase vector database
+Dataset processing script
+Downloads yelp reviews, chunks them, creates embeddings, stores in database
 """
 import sys
 import os
 import requests
-from typing import List, Dict, Any
 import time
 
-# Add parent directory to path to import our modules
+# add parent dir to path so we can import our modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.embedding_service import EmbeddingService
 from services.vector_store import VectorStore
 from utils.text_chunker import TextChunker
 
-def download_yelp_dataset(limit: int = 100) -> List[Dict[str, Any]]:
-    """
-    Download Yelp review data from Hugging Face datasets API
-    
-    Args:
-        limit: Maximum number of reviews to download
-        
-    Returns:
-        List of review dictionaries
-    """
-    print(f"📥 Downloading Yelp dataset (limit: {limit})...")
+def download_yelp_data(limit=100):
+    """Download yelp reviews from huggingface datasets"""
+    print(f"📥 Downloading yelp data (limit: {limit})...")
     
     try:
-        # Hugging Face datasets server API
-        url = f"https://datasets-server.huggingface.co/rows"
+        # huggingface datasets api
+        url = "https://datasets-server.huggingface.co/rows"
         params = {
             'dataset': 'Yelp/yelp_review_full',
             'config': 'yelp_review_full', 
             'split': 'train',
             'offset': 0,
-            'length': min(limit, 100)  # API limit per request
+            'length': min(limit, 100)  # api has limits
         }
         
         response = requests.get(url, params=params, timeout=30)
@@ -43,205 +34,190 @@ def download_yelp_dataset(limit: int = 100) -> List[Dict[str, Any]]:
         
         data = response.json()
         
-        if 'rows' not in data or not data['rows']:
-            raise ValueError("No data found in API response")
+        if 'rows' not in data:
+            raise ValueError("No data in response")
         
-        # Transform to our format
+        # convert to our format
         reviews = []
         for i, row in enumerate(data['rows']):
             review_data = row['row']
             review = {
                 'review_id': f"yelp_{i:04d}",
                 'text': review_data.get('text', ''),
-                'stars': review_data.get('label', 0) + 1,  # Convert 0-4 to 1-5
-                'original_data': review_data
+                'stars': review_data.get('label', 0) + 1,  # convert 0-4 to 1-5 stars
+                'raw_data': review_data
             }
             reviews.append(review)
         
-        print(f"✅ Downloaded {len(reviews)} reviews successfully")
+        print(f"Got {len(reviews)} reviews")
         return reviews[:limit]
         
     except Exception as e:
-        print(f"❌ Error downloading dataset: {e}")
-        print("🔄 Using fallback sample data...")
-        return get_sample_data()
+        print(f"Download failed: {e}")
+        print("Using sample data instead...")
+        return get_sample_reviews()
 
-def get_sample_data() -> List[Dict[str, Any]]:
-    """Fallback sample data for testing"""
+def get_sample_reviews():
+    """Fallback sample data when download fails"""
     return [
         {
             'review_id': 'sample_001',
-            'text': 'This restaurant was absolutely amazing! The food was delicious, the service was excellent, and the atmosphere was perfect. I especially loved the pasta dish - it was cooked to perfection with a rich, flavorful sauce. The staff was very attentive and friendly throughout our entire meal.',
+            'text': 'This place is absolutely incredible! The food was amazing, service was top notch, and the atmosphere was perfect. I had the pasta special and it was cooked perfectly with such a rich and flavorful sauce. Our server was attentive and friendly throughout the entire meal. Will definitely be coming back soon!',
             'stars': 5
         },
         {
             'review_id': 'sample_002', 
-            'text': 'Had a terrible experience here. The food was cold and tasteless, the service was incredibly slow, and the place was dirty. My burger was undercooked and the fries were soggy. The waiter seemed annoyed when I asked questions about the menu. Would definitely not recommend this place to anyone.',
+            'text': 'What a disappointment. The food was cold when it arrived, completely tasteless, and the service was incredibly slow. My burger was undercooked and the fries were soggy and gross. The waiter seemed annoyed every time we asked a question. Definitely will not be returning to this place.',
             'stars': 1
         },
         {
             'review_id': 'sample_003',
-            'text': 'Pretty decent restaurant overall. The food was okay, nothing spectacular but satisfying enough. Service was average - took a while to get our orders but the staff was polite when they did come around. The prices are reasonable for the portion sizes you get.',
+            'text': 'Pretty average restaurant overall. The food was decent, nothing to write home about but it was satisfying. Service was okay - took a while to get our orders but the staff was polite when they came around. Prices are reasonable for what you get.',
             'stars': 3
         },
         {
             'review_id': 'sample_004',
-            'text': 'Great little place! Love the cozy atmosphere and friendly staff. The pizza was really good with fresh ingredients and crispy crust. Only downside was the wait time - took about 45 minutes to get our food. But overall a positive experience.',
+            'text': 'Really nice little spot! Love the cozy vibe and the staff is super friendly. The pizza was really good with fresh toppings and a nice crispy crust. Only complaint is the wait time - took about 45 minutes to get our food. But overall a great experience.',
             'stars': 4
         },
         {
             'review_id': 'sample_005',
-            'text': 'Disappointing visit. The restaurant looked nice from outside but food quality was poor. My salad had wilted lettuce and the dressing was bland. The chicken was dry and overcooked. For the price we paid, expected much better quality.',
+            'text': 'Went here for dinner last week and was pretty disappointed. The place looked nice from the outside but the food quality was just poor. My salad had wilted lettuce and the dressing was really bland. The chicken was dry and overcooked. For what we paid, expected much better.',
             'stars': 2
         }
     ]
 
-def process_reviews_batch(chunks: List[Dict[str, Any]], 
-                         embedding_service: EmbeddingService,
-                         vector_store: VectorStore,
-                         batch_size: int = 50) -> int:
-    """
-    Process a batch of review chunks - create embeddings and store
-    
-    Args:
-        chunks: List of chunk dictionaries
-        embedding_service: Embedding service instance
-        vector_store: Vector store instance
-        batch_size: Number of chunks to process at once
-        
-    Returns:
-        Number of chunks successfully processed
-    """
+def process_batch(chunks, embedding_service, vector_store, batch_size=50):
+    """Process a batch of chunks - create embeddings and store them"""
     total_processed = 0
     
-    # Process in batches
+    # process in smaller batches to avoid memory issues
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i:i + batch_size]
         batch_num = (i // batch_size) + 1
         total_batches = (len(chunks) + batch_size - 1) // batch_size
         
-        print(f"\n📦 Processing batch {batch_num}/{total_batches} ({len(batch)} chunks)...")
+        print(f"\nProcessing batch {batch_num}/{total_batches} ({len(batch)} chunks)...")
         
         try:
-            # Extract texts for embedding
+            # get texts for embedding
             texts = [chunk['chunk_text'] for chunk in batch]
             
-            # Create embeddings (this is much faster than the Node.js API version!)
-            print("🤖 Creating embeddings...")
+            # create embeddings - this is the slow part
+            print("Creating embeddings...")
             embeddings = embedding_service.create_batch_embeddings(
                 texts, 
-                batch_size=32,  # Internal batch size for the model
+                batch_size=32,
                 show_progress=True
             )
             
-            # Prepare data for database insertion
-            db_data = []
+            # prepare data for database
+            db_records = []
             for chunk, embedding in zip(batch, embeddings):
-                db_record = {
+                record = {
                     'review_id': chunk['review_id'],
                     'chunk_text': chunk['chunk_text'],
                     'chunk_index': chunk['chunk_index'],
                     'embedding': embedding,
                     'stars': chunk['stars']
                 }
-                db_data.append(db_record)
+                db_records.append(record)
             
-            # Insert into database
-            print("💾 Storing in database...")
-            inserted_count = vector_store.insert_batch_chunks(db_data)
+            # insert into database
+            print("Saving to database...")
+            inserted = vector_store.insert_batch_chunks(db_records)
             
-            if inserted_count == len(batch):
-                total_processed += inserted_count
-                print(f"✅ Batch {batch_num} completed successfully!")
+            if inserted == len(batch):
+                total_processed += inserted
+                print(f"Batch {batch_num} done!")
             else:
-                print(f"⚠️ Batch {batch_num} partially completed: {inserted_count}/{len(batch)}")
-                total_processed += inserted_count
+                print(f"Batch {batch_num} partially done: {inserted}/{len(batch)}")
+                total_processed += inserted
             
-            # Small delay between batches to be nice to the database
+            # small delay to be nice to the database
             if i + batch_size < len(chunks):
                 time.sleep(0.5)
                 
         except Exception as e:
-            print(f"❌ Error processing batch {batch_num}: {e}")
-            print("🔄 Continuing with next batch...")
-            continue
+            print(f"Batch {batch_num} failed: {e}")
+            continue  # try next batch
     
     return total_processed
 
 def main():
     """Main processing function"""
-    print("🚀 Python Vector Search - Dataset Processing")
-    print("=" * 60)
+    print("Vector Search Dataset Processing")
+    print("=" * 50)
     
     try:
-        # Initialize services
-        print("🔧 Initializing services...")
+        # initialize our services
+        print("Setting up services...")
         embedding_service = EmbeddingService()
         vector_store = VectorStore()
-        chunker = TextChunker(chunk_size=300, overlap=50)
+        chunker = TextChunker(chunk_size=300, overlap=50)  # smaller chunks work better
         
-        # Show model info
+        # show what model we're using
         model_info = embedding_service.get_model_info()
-        print(f"🤖 Using model: {model_info['model_name']}")
-        print(f"📐 Embedding dimension: {model_info['embedding_dimension']}")
+        print(f"Model: {model_info['model_name']}")
+        print(f"Dimensions: {model_info['embedding_dimension']}")
         
-        # Check existing data
-        existing_count = vector_store.get_chunk_count()
-        print(f"📊 Existing chunks in database: {existing_count}")
+        # check current database state
+        existing = vector_store.get_chunk_count()
+        print(f"Current chunks in database: {existing}")
         
-        # Download new data
-        new_reviews = download_yelp_dataset(limit=50)  # Start with 50 reviews
+        # download new reviews
+        reviews = download_yelp_data(limit=50)  # start small
         
-        if not new_reviews:
-            print("❌ No reviews to process")
+        if not reviews:
+            print("No reviews to process")
             return
         
-        # Chunk the reviews
-        print(f"\n📝 Chunking {len(new_reviews)} reviews...")
-        chunks = chunker.chunk_reviews(new_reviews, show_progress=True)
+        # chunk the reviews
+        print(f"\nChunking {len(reviews)} reviews...")
+        chunks = chunker.chunk_reviews(reviews, show_progress=True)
         
         if not chunks:
-            print("❌ No chunks created")
+            print("No chunks created")
             return
         
-        # Show chunking statistics
+        # show chunking stats
         stats = chunker.get_stats(chunks)
-        print(f"\n📊 Chunking Statistics:")
+        print(f"\nChunking stats:")
         for key, value in stats.items():
             if isinstance(value, float):
                 print(f"  {key}: {value:.1f}")
             else:
                 print(f"  {key}: {value}")
         
-        # Process the chunks
-        print(f"\n🔄 Processing {len(chunks)} chunks...")
-        processed_count = process_reviews_batch(
+        # process all the chunks
+        print(f"\nProcessing {len(chunks)} chunks...")
+        processed = process_batch(
             chunks, 
             embedding_service, 
             vector_store,
-            batch_size=20  # Smaller batches for better error handling
+            batch_size=20  # smaller batches = more stable
         )
         
-        # Final results
-        print(f"\n" + "=" * 60)
-        print("🎉 PROCESSING COMPLETE!")
-        print(f"✅ Successfully processed: {processed_count}/{len(chunks)} chunks")
+        # show final results
+        print(f"\n" + "=" * 50)
+        print("Processing finished!")
+        print(f"Processed: {processed}/{len(chunks)} chunks")
         
-        # Updated database stats
+        # updated stats
         final_count = vector_store.get_chunk_count()
-        print(f"📊 Total chunks in database: {final_count}")
-        print(f"📈 New chunks added: {final_count - existing_count}")
+        print(f"Total chunks now: {final_count}")
+        print(f"Added: {final_count - existing} new chunks")
         
-        # Show database statistics
+        # database stats
         db_stats = vector_store.get_database_stats()
-        print(f"\n📋 Database Statistics:")
+        print(f"\nDatabase stats:")
         for key, value in db_stats.items():
             print(f"  {key}: {value}")
         
-        print(f"\n🎯 Ready for semantic search!")
+        print(f"\nReady for searching!")
         
     except Exception as e:
-        print(f"❌ Processing failed: {e}")
+        print(f"Processing failed: {e}")
         return 1
     
     return 0

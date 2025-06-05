@@ -1,376 +1,234 @@
 """
-Interactive Semantic Search Demo 
+Interactive demo for semantic search
+Shows off what the system can do with different types of queries
 """
 import sys
 import os
 import time
-from typing import List, Dict, Any
 
-# Add parent directory to path
+# add parent dir
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.database import db_config
 from services.embedding_service import EmbeddingService
 
-class InteractiveSemanticDemo:
+class InteractiveDemo:
     def __init__(self):
-        """Initialize interactive demo system"""
-        print("Initializing Semantic Search Demo...")
-        print("=" * 60)
+        """Setup the demo system"""
+        print("Setting up semantic search demo...")
+        print("=" * 50)
         
         self.client = db_config.get_client()
         self.embedding_service = EmbeddingService()
         
-        # Get database stats
+        # get some basic stats
         result = self.client.table('review_chunks').select('id', count='exact').execute()
         self.total_chunks = result.count or 0
         
         print(f"Model: {self.embedding_service.model_name}")
-        print(f"Embedding Dimensions: {self.embedding_service.embedding_dimension}")
-        print(f"Database Chunks: {self.total_chunks:,}")
-        print(f"Ready for demonstration!")
-        print("=" * 60)
+        print(f"Embedding size: {self.embedding_service.embedding_dimension}")
+        print(f"Database chunks: {self.total_chunks:,}")
+        print(f"Demo ready!")
+        print("=" * 50)
     
-    def search_and_display(self, query: str, show_explanation: bool = True) -> List[Dict]:
-        """Perform search and display results with explanations"""
-        if show_explanation:
-            print(f"\nQUERY: '{query}'")
-            print("=" * 50)
-            print("Processing:")
-            print("  1. Converting query to 384-dimensional vector...")
+    def search_and_show(self, query, explain=True):
+        """Do a search and show results nicely"""
+        if explain:
+            print(f"\nQuery: '{query}'")
+            print("=" * 40)
+            print("Steps:")
+            print("  1. Converting to vector...")
         
         start_time = time.time()
         
-        # Create query embedding
-        query_embedding = self.embedding_service.create_embedding(query)
-        embedding_time = time.time() - start_time
+        # create embedding
+        query_emb = self.embedding_service.create_embedding(query)
+        emb_time = time.time() - start_time
         
-        if show_explanation:
-            print(f"  2. Embedding created in {embedding_time:.3f}s")
-            print(f"  3. Searching {self.total_chunks:,} chunks using cosine similarity...")
+        if explain:
+            print(f"  2. Embedding done in {emb_time:.3f}s")
+            print(f"  3. Searching {self.total_chunks:,} chunks...")
         
         search_start = time.time()
         
-        # Search using Supabase function
+        # search
         result = self.client.rpc('search_similar_reviews', {
-            'query_embedding': query_embedding,
-            'match_threshold': 0.15,  # Lower threshold for demo
+            'query_embedding': query_emb,
+            'match_threshold': 0.15,  # lower for demo
             'match_count': 5
         }).execute()
         
         search_time = time.time() - search_start
         total_time = time.time() - start_time
         
-        if show_explanation:
-            print(f"  4. Search completed in {search_time:.3f}s")
-            print(f"  5. Total processing time: {total_time:.3f}s")
+        if explain:
+            print(f"  4. Search done in {search_time:.3f}s")
+            print(f"  5. Total time: {total_time:.3f}s")
         
         if not result.data:
-            print("\nNo results found (similarity too low)")
+            print("\nNo results found")
             return []
         
-        # Display results
-        print(f"\nFOUND {len(result.data)} RESULTS:")
-        print("=" * 60)
+        # show results
+        print(f"\nFound {len(result.data)} results:")
+        print("=" * 50)
         
         for i, match in enumerate(result.data, 1):
-            similarity_score = match['similarity'] * 100
+            score = match['similarity'] * 100
             stars = "★" * match['stars'] + "☆" * (5 - match['stars'])
             
             print(f"\nResult {i}:")
-            print(f"   Similarity Score: {similarity_score:.1f}%")
-            print(f"   Star Rating: {stars} ({match['stars']}/5)")
-            print(f"   Review ID: {match['review_id']}")
-            print(f"   Text: {match['chunk_text']}")
-            print("-" * 60)
+            print(f"   Similarity: {score:.1f}%")
+            print(f"   Rating: {stars} ({match['stars']}/5)")
+            print(f"   Review: {match['review_id']}")
+            text = match['chunk_text']
+            if len(text) > 200:
+                text = text[:200] + "..."
+            print(f"   Text: {text}")
+            print("-" * 50)
         
         return result.data
     
-    def demonstrate_semantic_power(self):
-        """Show various types of semantic understanding"""
+    def demo_categories(self):
+        """Show different types of semantic understanding"""
         
-        demo_categories = [
+        categories = [
             {
-                "title": "FOOD QUALITY DETECTION",
-                "description": "Shows how the system understands food-related concepts",
+                "name": "FOOD QUALITY",
+                "desc": "Understanding food-related concepts",
                 "queries": [
                     "delicious amazing food",
-                    "tasty flavorful meal", 
-                    "mouth-watering cuisine",
-                    "bland tasteless food",
-                    "overcooked burnt meal"
+                    "tasty flavorful dishes", 
+                    "terrible bland food",
+                    "fresh ingredients",
+                    "overcooked burnt"
                 ]
             },
             {
-                "title": "SERVICE QUALITY ANALYSIS", 
-                "description": "Demonstrates understanding of service-related experiences",
+                "name": "SERVICE QUALITY", 
+                "desc": "Service and staff experiences",
                 "queries": [
                     "excellent friendly service",
-                    "attentive helpful staff",
+                    "helpful attentive staff",
                     "rude slow service",
                     "ignored by waitress",
-                    "professional courteous team"
+                    "professional team"
                 ]
             },
             {
-                "title": "PRICE & VALUE PERCEPTION",
-                "description": "Shows understanding of cost and value concepts", 
+                "name": "PRICE & VALUE",
+                "desc": "Cost and value perceptions", 
                 "queries": [
                     "expensive overpriced",
-                    "great value reasonable price",
-                    "cheap affordable meal",
-                    "worth every penny",
-                    "too costly for quality"
+                    "great value reasonable",
+                    "cheap affordable",
+                    "worth the money",
+                    "too costly"
                 ]
             },
             {
-                "title": "ATMOSPHERE & AMBIANCE",
-                "description": "Captures environmental and mood-related descriptions",
+                "name": "ATMOSPHERE",
+                "desc": "Environment and mood",
                 "queries": [
                     "romantic cozy atmosphere",
-                    "noisy crowded restaurant", 
-                    "peaceful quiet dining",
-                    "lively energetic vibe",
-                    "beautiful elegant decor"
-                ]
-            },
-            {
-                "title": "SPECIFIC DISHES & CUISINE",
-                "description": "Finds specific food items and cooking styles",
-                "queries": [
-                    "pizza crispy crust",
-                    "pasta sauce rich",
-                    "burger juicy beef",
-                    "salad fresh vegetables", 
-                    "dessert sweet chocolate"
-                ]
-            },
-            {
-                "title": "EMOTIONAL EXPERIENCES",
-                "description": "Understands emotional responses and overall experiences",
-                "queries": [
-                    "disappointed upset experience",
-                    "happy satisfied customer",
-                    "frustrated angry visit",
-                    "amazed impressed meal",
-                    "regret waste money"
-                ]
-            },
-            {
-                "title": "TIME & CONVENIENCE FACTORS",
-                "description": "Captures timing and convenience aspects",
-                "queries": [
-                    "quick fast service",
-                    "long wait time",
-                    "convenient location parking",
-                    "rushed hurried meal",
-                    "relaxed leisurely dining"
-                ]
-            },
-            {
-                "title": "RECOMMENDATION PATTERNS",
-                "description": "Finds recommendation and return visit patterns", 
-                "queries": [
-                    "highly recommend friends",
-                    "never coming back",
-                    "definitely return soon",
-                    "tell everyone about",
-                    "avoid this place"
+                    "noisy crowded place", 
+                    "peaceful quiet",
+                    "lively energetic",
+                    "beautiful decor"
                 ]
             }
         ]
         
-        print("\nSEMANTIC SEARCH POWER DEMONSTRATION")
-        print("=" * 60)
-        print("\nPress Enter after each result to continue...")
-        print("=" * 60)
+        print("\nSEMANTIC SEARCH DEMO")
+        print("=" * 50)
+        print("Press Enter after each result...")
+        print("=" * 50)
         
-        total_categories = len(demo_categories)
-        
-        for cat_num, category in enumerate(demo_categories, 1):
-            print(f"\n[Category {cat_num}/{total_categories}] {category['title']}")
-            print(f"Description: {category['description']}")
-            print("-" * 40)
+        for cat_num, category in enumerate(categories, 1):
+            print(f"\n[{cat_num}/{len(categories)}] {category['name']}")
+            print(f"Description: {category['desc']}")
+            print("-" * 30)
             
             for query_num, query in enumerate(category['queries'], 1):
                 print(f"\nQuery {query_num}/{len(category['queries'])}")
                 
-                # Perform search
-                results = self.search_and_display(query, show_explanation=True)
+                results = self.search_and_show(query, explain=True)
                 
                 if results:
-                    # Show semantic understanding
-                    print(f"\nSEMANTIC ANALYSIS:")
-                    print(f"  The system found content related to '{query}'")
-                    print(f"  even if the exact words don't match!")
-                    print(f"  Similarity scores show confidence levels.")
+                    print(f"\nSemantic analysis:")
+                    print(f"  Found content related to '{query}'")
+                    print(f"  even without exact word matches!")
                 
-                # Wait for user input
-                user_input = input(f"\nPress Enter to continue (or 'skip' to next category): ").strip().lower()
+                user_input = input(f"\nPress Enter to continue (or 'skip'): ").strip().lower()
                 if user_input == 'skip':
                     break
-                elif user_input in ['quit', 'exit', 'stop']:
+                elif user_input in ['quit', 'exit']:
                     return
             
-            if cat_num < total_categories:
-                input(f"\nFinished {category['title']}. Press Enter for next category...")
+            if cat_num < len(categories):
+                input(f"\nDone with {category['name']}. Press Enter for next...")
     
-    def interactive_search_mode(self):
-        """Allow supervisor to try their own queries"""
-        print("\n" + "=" * 60)
-        print("INTERACTIVE SEARCH MODE")
-        print("=" * 60)
-        print("Enter any search term related to restaurant experiences.")
-        print("Type 'demo' to return to guided demo, or 'quit' to exit.")
-        print("=" * 60)
+    def interactive_mode(self):
+        """Let user try their own searches"""
+        print("\n" + "=" * 50)
+        print("INTERACTIVE MODE")
+        print("=" * 50)
+        print("Try your own restaurant search queries.")
+        print("Type 'demo' to go back, 'quit' to exit.")
+        print("=" * 50)
         
         while True:
-            query = input("\nEnter your search query: ").strip()
+            query = input("\nEnter search query: ").strip()
             
             if not query:
                 continue
-            elif query.lower() in ['quit', 'exit', 'stop']:
+            elif query.lower() in ['quit', 'exit']:
                 break
             elif query.lower() == 'demo':
                 return 'demo'
             elif query.lower() == 'help':
-                print("\nSample queries you can try:")
+                print("\nTry these examples:")
                 print("  - 'spicy hot food'")
-                print("  - 'family friendly restaurant'") 
+                print("  - 'family friendly'") 
                 print("  - 'date night romantic'")
-                print("  - 'fast casual dining'")
-                print("  - 'vegetarian healthy options'")
+                print("  - 'fast casual'")
+                print("  - 'vegetarian options'")
                 continue
             
-            # Perform the search
-            self.search_and_display(query, show_explanation=True)
+            self.search_and_show(query, explain=True)
             
-            print(f"\nNotice how the system found semantically related content!")
+            print(f"\nNotice the semantic matching!")
         
         return 'quit'
     
-    def show_technical_explanation(self):
-        """Explain the technical concepts for supervisor"""
-        print("\n" + "=" * 60)
-        print("TECHNICAL EXPLANATION")
-        print("=" * 60)
-        
-        explanations = [
-            {
-                "concept": "Vector Embeddings",
-                "explanation": """
-Each piece of text is converted into a 384-dimensional vector (list of numbers).
-Similar meanings produce similar vectors. For example:
-  "delicious food" → [0.1, -0.3, 0.7, ..., 0.2]
-  "tasty meal"     → [0.09, -0.29, 0.68, ..., 0.19]  (similar numbers)
-  "terrible service" → [-0.2, 0.4, -0.1, ..., -0.3]  (different numbers)
-"""
-            },
-            {
-                "concept": "Cosine Similarity", 
-                "explanation": """
-We measure similarity using the angle between vectors in 384D space.
-  - Similar concepts: Small angle (high similarity score)
-  - Different concepts: Large angle (low similarity score)
-  - Formula: cosine(angle) = (A·B) / (|A|×|B|)
-  - Result: 0-100% similarity score
-"""
-            },
-            {
-                "concept": "Semantic Understanding",
-                "explanation": """
-The AI model was trained on millions of text examples to learn that:
-  - "great" and "excellent" have similar meanings
-  - "food" and "meal" refer to similar concepts  
-  - "terrible" and "horrible" express similar sentiments
-This allows matching by MEANING rather than exact words.
-"""
-            },
-            {
-                "concept": "Database Search",
-                "explanation": """
-The database contains:
-  - {total_chunks} text chunks from restaurant reviews
-  - Each chunk has its 384D vector stored
-  - Search compares query vector to all stored vectors
-  - Returns top matches ranked by similarity score
-  - Entire search happens in milliseconds
-""".format(total_chunks=self.total_chunks)
-            }
-        ]
-        
-        for i, item in enumerate(explanations, 1):
-            print(f"\n{i}. {item['concept']}")
-            print("-" * 30)
-            print(item['explanation'])
-            
-            if i < len(explanations):
-                input("Press Enter to continue...")
-        
-        input("\nPress Enter to return to demo...")
-    
-    def run_supervisor_demo(self):
-        """Main demo function for supervisor"""
-        print("\nWELCOME TO SEMANTIC SEARCH DEMONSTRATION")
-        print("=" * 60)
-        print("\nChoose your demonstration path:")
-        print("=" * 60)
-        
-        while True:
-            print("\nOptions:")
-            print("  1. Guided Demo - See pre-selected examples")
-            print("  2. Interactive Search - Try your own queries") 
-            print("  3. Technical Explanation - How it works")
-            print("  4. Quick Performance Test")
-            print("  5. Exit Demo")
-            
-            choice = input("\nEnter choice (1-5): ").strip()
-            
-            if choice == '1':
-                self.demonstrate_semantic_power()
-            elif choice == '2':
-                result = self.interactive_search_mode()
-                if result == 'demo':
-                    self.demonstrate_semantic_power()
-            elif choice == '3':
-                self.show_technical_explanation()
-            elif choice == '4':
-                self.quick_performance_test()
-            elif choice == '5':
-                break
-            else:
-                print("Please enter 1, 2, 3, 4, or 5")
-        
-        print("\nThank you for the demonstration!")
-    
-    def quick_performance_test(self):
-        """Show system performance metrics"""
-        print("\n" + "=" * 60)
+    def performance_test(self):
+        """Quick performance demo"""
+        print("\n" + "=" * 50)
         print("PERFORMANCE TEST")
-        print("=" * 60)
+        print("=" * 50)
         
-        test_queries = [
+        queries = [
             "excellent food quality",
-            "poor customer service", 
+            "poor service", 
             "reasonable prices",
             "romantic atmosphere",
             "fast delivery"
         ]
         
-        print(f"Testing search speed with {len(test_queries)} queries...")
-        print(f"Database size: {self.total_chunks:,} chunks")
+        print(f"Testing {len(queries)} queries...")
+        print(f"Database: {self.total_chunks:,} chunks")
         
         total_start = time.time()
         
-        for i, query in enumerate(test_queries, 1):
+        for i, query in enumerate(queries, 1):
             start = time.time()
             
-            query_embedding = self.embedding_service.create_embedding(query)
-            embedding_time = time.time() - start
+            query_emb = self.embedding_service.create_embedding(query)
+            emb_time = time.time() - start
             
             search_start = time.time()
             result = self.client.rpc('search_similar_reviews', {
-                'query_embedding': query_embedding,
+                'query_embedding': query_emb,
                 'match_threshold': 0.2,
                 'match_count': 5
             }).execute()
@@ -380,28 +238,59 @@ The database contains:
             results_count = len(result.data) if result.data else 0
             
             print(f"Query {i}: '{query}'")
-            print(f"  Embedding: {embedding_time:.3f}s | Search: {search_time:.3f}s | Total: {total_time:.3f}s")
+            print(f"  Embedding: {emb_time:.3f}s | Search: {search_time:.3f}s | Total: {total_time:.3f}s")
             print(f"  Results: {results_count}")
         
-        total_duration = time.time() - total_start
-        avg_time = total_duration / len(test_queries)
+        total_time = time.time() - total_start
+        avg_time = total_time / len(queries)
         
-        print(f"\nPERFORMANCE SUMMARY:")
-        print(f"  Total time: {total_duration:.3f}s")
-        print(f"  Average per query: {avg_time:.3f}s")
-        print(f"  Queries per second: {len(test_queries)/total_duration:.1f}")
-        print(f"  System can handle real-time search loads!")
+        print(f"\nPerformance summary:")
+        print(f"  Total: {total_time:.3f}s")
+        print(f"  Average: {avg_time:.3f}s per query")
+        print(f"  Speed: {len(queries)/total_time:.1f} queries/second")
+        print(f"  System handles real-time loads!")
         
-        input("\nPress Enter to return to menu...")
+        input("\nPress Enter to continue...")
+    
+    def run_demo(self):
+        """Main demo function"""
+        print("\nWELCOME TO SEMANTIC SEARCH DEMO")
+        print("=" * 50)
+        print("Choose what you want to see:")
+        print("=" * 50)
+        
+        while True:
+            print("\nOptions:")
+            print("  1. Guided demo - see examples")
+            print("  2. Interactive search - try your own") 
+            print("  3. Performance test")
+            print("  4. Exit")
+            
+            choice = input("\nChoice (1-4): ").strip()
+            
+            if choice == '1':
+                self.demo_categories()
+            elif choice == '2':
+                result = self.interactive_mode()
+                if result == 'demo':
+                    self.demo_categories()
+            elif choice == '3':
+                self.performance_test()
+            elif choice == '4':
+                break
+            else:
+                print("Please enter 1, 2, 3, or 4")
+        
+        print("\nThanks for trying the demo!")
 
 def main():
-    """Run the supervisor demonstration"""
+    """Run the demo"""
     try:
-        demo = InteractiveSemanticDemo()
-        demo.run_supervisor_demo()
+        demo = InteractiveDemo()
+        demo.run_demo()
     except Exception as e:
         print(f"Demo error: {e}")
-        print("Please ensure your database connection is working.")
+        print("Make sure database connection works")
 
 if __name__ == "__main__":
     main()

@@ -1,0 +1,19 @@
+# main dependencies for the vector search project
+supabase==2.3.4
+python-dotenv==1.0.0
+
+# ML for embeddings - fixed numpy version
+sentence-transformers==2.2.2
+transformers==4.36.0
+torch>=2.2.0
+numpy<2
+
+# data processing libraries
+pandas==2.0.3
+datasets==2.14.0
+
+# http requests for downloading data
+requests==2.31.0
+
+# progress bars
+tqdm==4.66.1
