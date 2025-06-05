@@ -46,7 +46,7 @@ class DatabaseConfig:
         try:
             # just try to query something simple
             result = self.client.table('review_chunks').select('id').limit(1).execute()
-            print("✅ Database connection works!")
+            print("Database connection works!")
             if result.data:
                 print(f"Found {len(result.data)} test record")
             return True
