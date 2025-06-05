@@ -1,6 +1,11 @@
 """
-Quick test script to check if everything works
+Quick test script to check if everything works.
 Tests database connection, existing data, embedding service, etc.
+
+Database Health Checks: https://docs.docker.com/engine/reference/builder/#healthcheck
+Connection Testing: Standard database testing practices
+System Validation: https://pytest.org/
+
 """
 from config.database import db_config
 from services.vector_store import VectorStore

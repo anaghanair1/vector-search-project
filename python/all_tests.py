@@ -1,6 +1,14 @@
 """
-Big test file to check if everything works
-Tests all the search stuff - semantic, hybrid, similarity etc
+Big test file to check if everything works.
+Tests all the search stuff - semantic, hybrid, similarity etc.
+
+pytest Patterns: https://docs.pytest.org/en/latest/
+unittest Framework: https://docs.python.org/3/library/unittest.html
+ML Model Testing: https://madewithml.com/courses/mlops/testing/
+Unit Testing: https://realpython.com/python-testing/
+Integration Testing: https://martinfowler.com/articles/practical-test-pyramid.html
+Performance Testing: https://locust.io/
+
 """
 import sys
 import os

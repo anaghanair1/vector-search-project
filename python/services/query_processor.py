@@ -1,6 +1,13 @@
 """
 Query processor for hybrid search
 Handles query analysis, keyword extraction, query enhancement etc.
+
+Query Enhancement Techniques: https://en.wikipedia.org/wiki/Query_expansion
+Text Classification: https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html
+Stop Words Lists: https://www.ranks.nl/stopwords
+Sentiment Analysis: https://textblob.readthedocs.io/en/dev/quickstart.html#sentiment-analysis
+Keyword Extraction: https://pypi.org/project/yake/
+
 """
 import re
 from typing import List, Dict

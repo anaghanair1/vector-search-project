@@ -1,6 +1,13 @@
 """
 Hybrid search service - combines semantic and keyword search
-Works better than either approach alone
+Works better than either approach alone.
+
+Hybrid Retrieval: https://www.pinecone.io/learn/hybrid-search-intro/
+BM25 + Dense Retrieval: https://arxiv.org/abs/2104.08663
+Reciprocal Rank Fusion: https://plg.uwaterloo.ca/~gvcormac/cormacksigir09-rrf.pdf
+Score Combination: https://elasticsearch.co/blog/practical-guide-to-hybrid-search
+Weight Optimization: https://www.mongodb.com/developer/products/atlas/fine-tune-performance-rag-applications/
+
 """
 import time
 from typing import List, Dict

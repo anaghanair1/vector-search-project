@@ -1,6 +1,11 @@
 """
 Interactive demo for semantic search
-Shows off what the system can do with different types of queries
+Shows what the system can do with different types of queries.
+
+Python Input/Output: https://docs.python.org/3/tutorial/inputoutput.html
+Command Line Interfaces: https://realpython.com/python-command-line-arguments/
+Progress Tracking: https://github.com/tqdm/tqdm
+
 """
 import sys
 import os

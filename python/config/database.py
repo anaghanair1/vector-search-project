@@ -1,6 +1,15 @@
 """
 Database config for supabase stuff
 TODO: maybe add connection pooling later?
+
+Supabase Python Documentation: https://supabase.com/docs/reference/python/initializing
+Supabase Python Client GitHub: https://github.com/supabase/supabase-py
+Python-dotenv Documentation: https://pypi.org/project/python-dotenv/
+Environment Variables Best Practices: https://12factor.net/config
+Django Database Configuration: https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+Flask Configuration Patterns: https://flask.palletsprojects.com/en/2.3.x/config/
+Singleton Pattern Implementation: https://refactoring.guru/design-patterns/singleton/python/example
+
 """
 import os
 from dotenv import load_dotenv
@@ -42,7 +51,7 @@ class DatabaseConfig:
                 print(f"Found {len(result.data)} test record")
             return True
         except Exception as e:
-            print(f"❌ Connection test failed: {e}")
+            print(f"Connection test failed: {e}")
             return False
 
 # create global instance - probably not the best pattern but works for now

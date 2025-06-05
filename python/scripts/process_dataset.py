@@ -1,6 +1,15 @@
 """
 Dataset processing script
 Downloads yelp reviews, chunks them, creates embeddings, stores in database
+
+Yelp Review Dataset: https://huggingface.co/datasets/Yelp/yelp_review_full
+Hugging Face Datasets API: https://huggingface.co/docs/datasets-server/quick_start
+Apache Airflow DAG Patterns: https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html
+Batch Processing: https://www.astronomer.io/docs/learn/dag-best-practices/
+Error Handling: https://realpython.com/python-exceptions/
+Requests Library: https://docs.python-requests.org/en/latest/
+HTTP Error Handling: https://requests.readthedocs.io/en/latest/user/quickstart/#errors-and-exceptions
+
 """
 import sys
 import os
@@ -16,7 +25,7 @@ from utils.text_chunker import TextChunker
 
 def download_yelp_data(limit=100):
     """Download yelp reviews from huggingface datasets"""
-    print(f"📥 Downloading yelp data (limit: {limit})...")
+    print(f"Downloading yelp data (limit: {limit})...")
     
     try:
         # huggingface datasets api

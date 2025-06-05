@@ -1,6 +1,20 @@
 """
 Text chunking utilities
 Splits long reviews into smaller pieces for better embedding/search
+
+LangChain RecursiveCharacterTextSplitter: https://python.langchain.com/docs/how_to/recursive_text_splitter/
+LangChain Text Splitters Concepts: https://python.langchain.com/docs/concepts/text_splitters/
+NLTK Text Processing: https://www.nltk.org/book/ch03.html
+spaCy Sentence Segmentation: https://spacy.io/usage/linguistic-features#sbd
+Regex Patterns: https://docs.python.org/3/library/re.html
+Text Preprocessing: https://scikit-learn.org/stable/modules/feature_extraction.html#text-feature-extraction
+Overlap Strategies: https://dev.to/eteimz/understanding-langchains-recursivecharactertextsplitter-2846
+Query Enhancement Techniques: https://en.wikipedia.org/wiki/Query_expansion
+Text Classification: https://scikit-learn.org/stable/tutorial/text_analytics/working_with_text_data.html
+Stop Words Lists: https://www.ranks.nl/stopwords
+Sentiment Analysis: https://textblob.readthedocs.io/en/dev/quickstart.html#sentiment-analysis
+Keyword Extraction: https://pypi.org/project/yake/
+
 """
 import re
 from typing import List, Dict
