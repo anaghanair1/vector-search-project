@@ -1,10 +1,20 @@
+# virtual environment
+.venv/
 venv/
+
+# bytecode & cache
 __pycache__/
-.env
 *.pyc
+
+# environment files
+.env
+
+# OS metadata
 .DS_Store
+
+# JS/JSON files
 *.js
 *.json
-**/*.js
-**/*.json
-node_modules
+
+# node modules
+node_modules/
